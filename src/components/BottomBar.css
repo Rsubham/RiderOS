@@ -1,0 +1,110 @@
+.bottom-bar-left {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+
+.bottom-bar-icon-button {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.bottom-bar-icon-button.active {
+  color: var(--accent-color);
+}
+
+/* This targets the menu button which doesn't have cursor: pointer in the original inline style */
+.bottom-bar-menu-button {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+}
+
+.bottom-bar-center {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.bottom-bar-album-art-container {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  overflow: hidden;
+  background-color: #333;
+  cursor: pointer;
+}
+
+.bottom-bar-album-art {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.bottom-bar-track-info {
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  max-width: 150px;
+}
+
+.bottom-bar-track-name {
+  font-size: 14px;
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bottom-bar-artist-name {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bottom-bar-playback-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: 24px;
+}
+
+.bottom-bar-play-button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: none;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+}
+
+.bottom-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+}
+
+.bottom-bar-time {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.bottom-bar-weather {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bottom-bar-temp {
+  font-size: 16px;
+  font-weight: bold;
+}

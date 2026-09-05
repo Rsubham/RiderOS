@@ -3,7 +3,9 @@ import axios from 'axios';
 const CACHE_KEY = 'rideros_weather_cache';
 const CACHE_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
 
-const API_KEY = import.meta.env.VITE_OPENWEATHER_API_KEY || 'dummy_key';
+import { getWeatherApiKey } from './apiKeys';
+
+const API_KEY = getWeatherApiKey();
 
 export async function fetchWeather(lat, lon) {
   if (!lat || !lon) return null;

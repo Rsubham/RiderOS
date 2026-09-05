@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 
-const CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
+import { getSpotifyClientId } from '../utils/apiKeys';
+
+const CLIENT_ID = getSpotifyClientId();
 const REDIRECT_URI = window.location.origin + '/'; 
 const SCOPES = [
   'user-read-playback-state',

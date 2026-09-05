@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Cloud, Droplets, Wind, Eye, Info, Sunrise, Sunset } from 'lucide-react';
 import { fetchWeather } from '../../utils/weatherApi';
+import { formatTime, formatTemp, formatSpeed, formatDistance, formatPrecipitation, usePreferences } from '../../utils/preferences';
+import './WeatherPanel.css';
 
 export default function WeatherPanel({ setActivePanel, location }) {
+  usePreferences(); // Trigger re-render when preferences change
   const [weatherData, setWeatherData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -22,7 +25,7 @@ export default function WeatherPanel({ setActivePanel, location }) {
 
   if (loading || !weatherData) {
     return (
-      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="weather-panel-loading">
         Loading Weather...
       </div>
     );
@@ -31,110 +34,106 @@ export default function WeatherPanel({ setActivePanel, location }) {
   const { current, forecast } = weatherData;
 
   // Formatting values
-  const temp = Math.round(current.main.temp);
-  const feelsLike = Math.round(current.main.feels_like);
+  const tempStr = formatTemp(current.main.temp);
+  const feelsLikeStr = formatTemp(current.main.feels_like);
   const condition = current.weather[0].main;
   
   // Visibility logic (10km ceiling)
   let visibilityDisplay = 'N/A';
   if (current.visibility !== undefined) {
-    if (current.visibility >= 10000) {
-      visibilityDisplay = '>= 10.0 km';
-    } else {
-      visibilityDisplay = `${(current.visibility / 1000).toFixed(1)} km`;
-    }
+    visibilityDisplay = formatDistance(current.visibility);
   }
 
   // Riding Conditions logic
   let ridingCondition = "Good riding conditions";
-  let conditionColor = "var(--success-color)";
+  let conditionClass = "good";
   if (current.weather[0].id < 700 || current.wind.speed > 10) {
     ridingCondition = "Poor riding conditions";
-    conditionColor = "var(--danger-color)";
+    conditionClass = "poor";
   }
 
   // Derive Today's temp range from forecast
   const todayForecasts = forecast.list.slice(0, 5); // Next few hours
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', padding: '24px', overflowY: 'auto' }}>
+    <div className="weather-panel-container">
       
       {/* Top Nav */}
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px', cursor: 'pointer' }} onClick={() => setActivePanel('music')}>
-        <span style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>&lt; Music</span>
+      <div className="weather-panel-top-nav" onClick={() => setActivePanel('music')}>
+        <span className="weather-panel-top-nav-text">&lt; Music</span>
       </div>
 
       {/* Main Current Weather */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '32px' }}>
-        <Cloud size={64} style={{ marginBottom: '16px' }} />
-        <h1 style={{ fontSize: '64px', fontWeight: 'bold', lineHeight: '1', marginBottom: '8px' }}>{temp}°C</h1>
-        <h2 style={{ fontSize: '24px', fontWeight: 'normal', marginBottom: '4px' }}>{condition}</h2>
-        <span style={{ color: 'var(--text-secondary)' }}>Feels like {feelsLike}°C</span>
+      <div className="weather-panel-main">
+        <Cloud size={64} className="weather-panel-main-icon" />
+        <h1 className="weather-panel-main-temp">{tempStr}</h1>
+        <h2 className="weather-panel-main-condition">{condition}</h2>
+        <span className="weather-panel-main-feels-like">Feels like {feelsLikeStr}</span>
       </div>
 
       {/* Riding Conditions */}
-      <div className="glass-panel" style={{ padding: '16px', marginBottom: '16px' }}>
-        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: 'bold', letterSpacing: '1px' }}>RIDING CONDITIONS</div>
-        <div style={{ color: conditionColor, fontWeight: 'bold' }}>{ridingCondition}</div>
+      <div className="glass-panel weather-panel-card">
+        <div className="weather-panel-section-title">RIDING CONDITIONS</div>
+        <div className={`weather-panel-riding-condition ${conditionClass}`}>{ridingCondition}</div>
       </div>
 
       {/* Detailed Grid */}
-      <div className="glass-panel" style={{ padding: '16px', marginBottom: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div className="glass-panel weather-panel-grid">
+        <div className="weather-panel-grid-item">
           <Droplets size={24} color="var(--accent-color)" />
           <div>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Rain</div>
-            <div style={{ fontWeight: 'bold' }}>{current.rain ? current.rain['1h'] || 0 : 0} mm</div>
+            <div className="weather-panel-grid-label">Rain</div>
+            <div className="weather-panel-grid-value">{current.rain ? formatPrecipitation(current.rain['1h'] || 0) : formatPrecipitation(0)}</div>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div className="weather-panel-grid-item">
           <Wind size={24} color="var(--text-secondary)" />
           <div>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Wind</div>
-            <div style={{ fontWeight: 'bold' }}>{Math.round(current.wind.speed * 3.6)} km/h</div>
+            <div className="weather-panel-grid-label">Wind</div>
+            <div className="weather-panel-grid-value">{formatSpeed(current.wind.speed)}</div>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div className="weather-panel-grid-item">
           <Wind size={24} color="var(--text-secondary)" />
           <div>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Gusts</div>
-            <div style={{ fontWeight: 'bold' }}>{current.wind.gust ? Math.round(current.wind.gust * 3.6) : 0} km/h</div>
+            <div className="weather-panel-grid-label">Gusts</div>
+            <div className="weather-panel-grid-value">{current.wind.gust ? formatSpeed(current.wind.gust) : formatSpeed(0)}</div>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div className="weather-panel-grid-item">
           <Eye size={24} color="var(--text-secondary)" />
           <div>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Visibility</div>
-            <div style={{ fontWeight: 'bold' }}>{visibilityDisplay}</div>
+            <div className="weather-panel-grid-label">Visibility</div>
+            <div className="weather-panel-grid-value">{visibilityDisplay}</div>
           </div>
         </div>
       </div>
 
       {/* Today's Forecast */}
-      <div className="glass-panel" style={{ padding: '16px', marginBottom: '16px' }}>
-        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '16px', fontWeight: 'bold', letterSpacing: '1px' }}>TODAY</div>
+      <div className="glass-panel weather-panel-card">
+        <div className="weather-panel-section-title-large">TODAY</div>
         {todayForecasts.map((item, idx) => {
-          const time = new Date(item.dt * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const time = formatTime(new Date(item.dt * 1000));
           return (
-            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', alignItems: 'center' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>{time}</span>
+            <div key={idx} className="weather-panel-forecast-row">
+              <span className="weather-panel-forecast-time">{time}</span>
               <Cloud size={16} />
-              <span style={{ fontWeight: 'bold', width: '40px', textAlign: 'right' }}>{Math.round(item.main.temp)}°C</span>
-              <span style={{ color: 'var(--text-secondary)', width: '30px', textAlign: 'right' }}>{item.pop > 0 ? Math.round(item.pop * 100) + '%' : '0%'}</span>
+              <span className="weather-panel-forecast-temp">{formatTemp(item.main.temp)}</span>
+              <span className="weather-panel-forecast-pop">{item.pop > 0 ? Math.round(item.pop * 100) + '%' : '0%'}</span>
             </div>
           )
         })}
       </div>
 
       {/* Sunrise / Sunset */}
-      <div className="glass-panel" style={{ padding: '16px', display: 'flex', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div className="glass-panel weather-panel-card-row">
+        <div className="weather-panel-sun-item">
           <Sunrise size={20} color="#f1c40f" />
-          <span style={{ fontWeight: 'bold' }}>{new Date(current.sys.sunrise * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          <span className="weather-panel-sun-time">{formatTime(new Date(current.sys.sunrise * 1000))}</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="weather-panel-sun-item">
           <Sunset size={20} color="#e67e22" />
-          <span style={{ fontWeight: 'bold' }}>{new Date(current.sys.sunset * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          <span className="weather-panel-sun-time">{formatTime(new Date(current.sys.sunset * 1000))}</span>
         </div>
       </div>
 
