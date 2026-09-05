@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Cloud, Droplets, Wind, Eye, Info, Sunrise, Sunset } from 'lucide-react';
+import { Cloud, Droplets, Wind, Eye, Sunrise, Sunset } from 'lucide-react';
 import { fetchWeather } from '../../utils/weatherApi';
 import { formatTime, formatTemp, formatSpeed, formatDistance, formatPrecipitation, usePreferences } from '../../utils/preferences';
 import './WeatherPanel.css';

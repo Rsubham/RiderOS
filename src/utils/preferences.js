@@ -1,3 +1,7 @@
+export function getRiderName() {
+  return localStorage.getItem('RIDER_NAME') || 'Rider';
+}
+
 export function getTimeFormat() {
   return localStorage.getItem('TIME_FORMAT') || '12h';
 }
@@ -60,14 +64,16 @@ import { useState, useEffect } from 'react';
 export function usePreferences() {
   const [prefs, setPrefs] = useState({
     timeFormat: getTimeFormat(),
-    unitSystem: getUnitSystem()
+    unitSystem: getUnitSystem(),
+    riderName: getRiderName()
   });
 
   useEffect(() => {
     const handlePrefsChange = () => {
       setPrefs({
         timeFormat: getTimeFormat(),
-        unitSystem: getUnitSystem()
+        unitSystem: getUnitSystem(),
+        riderName: getRiderName()
       });
     };
     window.addEventListener('preferencesChanged', handlePrefsChange);

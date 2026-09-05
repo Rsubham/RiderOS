@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Key, Save, ChevronLeft, Sliders, Clock, Thermometer, X } from 'lucide-react';
+import { Key, Save, ChevronLeft, Sliders, Clock, Thermometer, X, User } from 'lucide-react';
 import { getSpotifyClientId, getWeatherApiKey } from '../../utils/apiKeys';
-import { getTimeFormat, getUnitSystem } from '../../utils/preferences';
+import { getTimeFormat, getUnitSystem, getRiderName } from '../../utils/preferences';
 import CustomDropdown from './CustomDropdown';
 import './SettingsPanel.css';
 
@@ -16,6 +16,7 @@ export default function SettingsPanel({ setActivePanel }) {
   // Preference State
   const [timeFormat, setTimeFormat] = useState('12h');
   const [unitSystem, setUnitSystem] = useState('metric');
+  const [riderName, setRiderName] = useState('Rider');
 
   useEffect(() => {
     // Load initial state from local storage
@@ -23,6 +24,7 @@ export default function SettingsPanel({ setActivePanel }) {
     setWeatherKey(getWeatherApiKey());
     setTimeFormat(getTimeFormat());
     setUnitSystem(getUnitSystem());
+    setRiderName(getRiderName());
   }, []);
 
   const handleSaveApiKeys = () => {
@@ -34,6 +36,7 @@ export default function SettingsPanel({ setActivePanel }) {
   const handleSavePreferences = () => {
     localStorage.setItem('TIME_FORMAT', timeFormat);
     localStorage.setItem('UNIT_SYSTEM', unitSystem);
+    localStorage.setItem('RIDER_NAME', riderName);
     window.dispatchEvent(new Event('preferencesChanged'));
     // Return to main menu to show it saved successfully
     setCurrentView('main');
@@ -105,7 +108,21 @@ export default function SettingsPanel({ setActivePanel }) {
           />
         </div>
 
-        <div className="settings-field-small-margin">
+        <div className="settings-field-large-margin">
+          <div className="settings-field-header">
+            <User size={18} color="var(--text-secondary)" />
+            <label className="settings-field-label-white">Rider Name</label>
+          </div>
+          <input 
+            type="text" 
+            value={riderName} 
+            onChange={(e) => setRiderName(e.target.value)} 
+            className="settings-input"
+            placeholder="Enter your name"
+          />
+        </div>
+
+        <div className="settings-field-large-margin">
           <div className="settings-field-header">
             <Thermometer size={18} color="var(--text-secondary)" />
             <label className="settings-field-label-white">Unit System</label>

@@ -35,7 +35,65 @@ export function useSpotify() {
   const [token, setToken] = useState(localStorage.getItem('spotify_token'));
   const [playerState, setPlayerState] = useState(null);
   const [error, setError] = useState(null);
+  
   const intervalRef = useRef(null);
+  const pausePollingUntil = useRef(0);
+
+  const logout = useCallback(() => {
+    setToken(null);
+    localStorage.removeItem('spotify_token');
+    localStorage.removeItem('spotify_refresh_token');
+    localStorage.removeItem('code_verifier');
+    setPlayerState(null);
+  }, []);
+
+  const refreshAccessToken = useCallback(async () => {
+    const refreshToken = localStorage.getItem('spotify_refresh_token');
+    if (!refreshToken) {
+      logout();
+      return null;
+    }
+
+    const payload = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        client_id: CLIENT_ID,
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+      }),
+    };
+
+    try {
+      const response = await fetch("https://accounts.spotify.com/api/token", payload);
+      const data = await response.json();
+
+      if (data.error === 'invalid_grant') {
+        console.error("Invalid grant on refresh, logging out.");
+        logout();
+        return null;
+      }
+
+      if (data.access_token) {
+        localStorage.setItem('spotify_token', data.access_token);
+        setToken(data.access_token);
+        
+        if (data.refresh_token) {
+          localStorage.setItem('spotify_refresh_token', data.refresh_token);
+        }
+        
+        return data.access_token;
+      }
+      
+      console.error("No access token in refresh response:", data);
+      return null;
+    } catch (err) {
+      console.error("Token refresh failed", err);
+      return null;
+    }
+  }, [logout]);
 
   // Handle Auth Code Redirect
   useEffect(() => {
@@ -68,6 +126,9 @@ export function useSpotify() {
           if (response.access_token) {
             localStorage.setItem('spotify_token', response.access_token);
             setToken(response.access_token);
+            if (response.refresh_token) {
+              localStorage.setItem('spotify_refresh_token', response.refresh_token);
+            }
             // Clean the URL to remove the code
             window.history.replaceState({}, document.title, window.location.pathname);
           } else {
@@ -83,7 +144,6 @@ export function useSpotify() {
   }, []);
 
   const login = async () => {
-    // Generate PKCE Challenge
     const codeVerifier = generateRandomString(64);
     window.localStorage.setItem('code_verifier', codeVerifier);
     const hashed = await sha256(codeVerifier);
@@ -103,19 +163,13 @@ export function useSpotify() {
     window.location.href = authUrl.toString();
   };
 
-  const logout = () => {
-    setToken(null);
-    localStorage.removeItem('spotify_token');
-    localStorage.removeItem('code_verifier');
-    setPlayerState(null);
-  };
+  const fetchPlayerState = useCallback(async (currentToken = token) => {
+    if (!currentToken) return;
+    if (Date.now() < pausePollingUntil.current) return;
 
-  // Fetch player state
-  const fetchPlayerState = useCallback(async () => {
-    if (!token) return;
     try {
       const response = await axios.get('https://api.spotify.com/v1/me/player', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${currentToken}` }
       });
       
       if (response.status === 204) {
@@ -125,19 +179,43 @@ export function useSpotify() {
       }
       setError(null);
     } catch (err) {
-      if (err.response && err.response.status === 401) {
-        logout(); // Token expired
+      if (err.response) {
+        if (err.response.status === 401) {
+          const newToken = await refreshAccessToken();
+          if (newToken) {
+            try {
+              const retryResponse = await axios.get('https://api.spotify.com/v1/me/player', {
+                headers: { Authorization: `Bearer ${newToken}` }
+              });
+              if (retryResponse.status === 204) {
+                setPlayerState(null);
+              } else if (retryResponse.data) {
+                setPlayerState(retryResponse.data);
+              }
+              setError(null);
+            } catch (retryErr) {
+              setError(retryErr.message);
+            }
+          }
+        } else if (err.response.status === 429) {
+          const retryAfter = err.response.headers['retry-after'];
+          const delaySeconds = retryAfter ? parseInt(retryAfter, 10) : 5;
+          console.warn(`Spotify API rate limit hit (429). Pausing requests for ${delaySeconds}s.`);
+          pausePollingUntil.current = Date.now() + (delaySeconds * 1000);
+        } else {
+          setError(err.message);
+        }
       } else {
         setError(err.message);
       }
     }
-  }, [token]);
+  }, [token, refreshAccessToken]);
 
-  // Poll every 3 seconds
+  // Poll every 5 seconds
   useEffect(() => {
     if (token) {
       fetchPlayerState();
-      intervalRef.current = setInterval(fetchPlayerState, 3000);
+      intervalRef.current = setInterval(() => fetchPlayerState(), 5000);
     }
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -145,32 +223,77 @@ export function useSpotify() {
   }, [token, fetchPlayerState]);
 
   // Controls
-  const sendControl = async (endpoint, method = 'POST') => {
-    if (!token) return;
+  const sendControl = useCallback(async (endpoint, method = 'POST', currentToken = token) => {
+    if (!currentToken) return;
+    if (Date.now() < pausePollingUntil.current) return;
+
     try {
       await axios({
         method,
         url: `https://api.spotify.com/v1/me/player/${endpoint}`,
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${currentToken}` }
       });
-      setTimeout(fetchPlayerState, 500); // Optimistic fetch
+      const isOptimistic = endpoint.startsWith('play') || endpoint.startsWith('pause') || endpoint.startsWith('shuffle') || endpoint.startsWith('seek');
+      if (!isOptimistic) {
+        setTimeout(() => fetchPlayerState(currentToken), 500);
+      }
     } catch (err) {
-      console.error("Spotify Control Error:", err);
+      if (err.response) {
+        if (err.response.status === 401) {
+          const newToken = await refreshAccessToken();
+          if (newToken) {
+            try {
+              await axios({
+                method,
+                url: `https://api.spotify.com/v1/me/player/${endpoint}`,
+                headers: { Authorization: `Bearer ${newToken}` }
+              });
+              const isOptimistic = endpoint.startsWith('play') || endpoint.startsWith('pause') || endpoint.startsWith('shuffle') || endpoint.startsWith('seek');
+              if (!isOptimistic) {
+                setTimeout(() => fetchPlayerState(newToken), 500);
+              }
+            } catch (retryErr) {
+              console.error("Spotify Control Retry Error:", retryErr);
+            }
+          }
+        } else if (err.response.status === 429) {
+          const retryAfter = err.response.headers['retry-after'];
+          const delaySeconds = retryAfter ? parseInt(retryAfter, 10) : 5;
+          console.warn(`Spotify API rate limit hit (429) on control. Pausing requests for ${delaySeconds}s.`);
+          pausePollingUntil.current = Date.now() + (delaySeconds * 1000);
+        } else {
+          console.error("Spotify Control Error:", err);
+        }
+      } else {
+        console.error("Spotify Control Error:", err);
+      }
     }
-  };
+  }, [token, refreshAccessToken, fetchPlayerState]);
 
   return {
     token,
     login,
-    logout,
     playerState,
     error,
     controls: {
-      play: () => sendControl('play', 'PUT'),
-      pause: () => sendControl('pause', 'PUT'),
+      play: () => {
+        setPlayerState(prev => prev ? { ...prev, is_playing: true } : prev);
+        sendControl('play', 'PUT');
+      },
+      pause: () => {
+        setPlayerState(prev => prev ? { ...prev, is_playing: false } : prev);
+        sendControl('pause', 'PUT');
+      },
       next: () => sendControl('next', 'POST'),
       previous: () => sendControl('previous', 'POST'),
-      shuffle: (state) => sendControl(`shuffle?state=${state}`, 'PUT'),
+      shuffle: (state) => {
+        setPlayerState(prev => prev ? { ...prev, shuffle_state: state } : prev);
+        sendControl(`shuffle?state=${state}`, 'PUT');
+      },
+      seek: (position_ms) => {
+        setPlayerState(prev => prev ? { ...prev, progress_ms: Math.round(position_ms) } : prev);
+        sendControl(`seek?position_ms=${Math.round(position_ms)}`, 'PUT');
+      },
     }
   };
 }

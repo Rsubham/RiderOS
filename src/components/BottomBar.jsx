@@ -1,22 +1,61 @@
-import React, { useState } from 'react';
-import { Settings, Shuffle, SkipBack, Pause, Play, SkipForward, Menu, Cloud, Maximize } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Settings, Shuffle, SkipBack, Pause, Play, SkipForward, Menu, Cloud, Maximize, Eye, EyeOff } from 'lucide-react';
 import '../index.css';
 import './BottomBar.css';
 import { useSpotify } from '../hooks/useSpotify';
 import { formatTime, formatTemp, usePreferences } from '../utils/preferences';
+import { fetchWeather } from '../utils/weatherApi';
 
-export default function BottomBar({ cleanDashboard, toggleCleanDashboard, activePanel, setActivePanel }) {
+export default function BottomBar({ cleanDashboard, toggleCleanDashboard, activePanel, setActivePanel, location, hideMusic, toggleHideMusic }) {
   const { token, playerState, controls } = useSpotify();
   usePreferences(); // Trigger re-render when preferences change
+  const [weatherData, setWeatherData] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (location?.latitude && location?.longitude) {
+      fetchWeather(location.latitude, location.longitude).then((data) => {
+        if (isMounted && data) {
+          setWeatherData(data);
+        }
+      });
+    }
+    return () => { isMounted = false; };
+  }, [location?.latitude, location?.longitude]);
 
   const toggleFullScreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => {
-        console.error(`Error attempting to enable fullscreen: ${err.message}`);
-      });
+    const doc = window.document;
+    const docEl = doc.documentElement;
+
+    const requestFullScreen =
+      docEl.requestFullscreen ||
+      docEl.webkitRequestFullscreen ||
+      docEl.mozRequestFullScreen ||
+      docEl.msRequestFullscreen;
+
+    const cancelFullScreen =
+      doc.exitFullscreen ||
+      doc.webkitExitFullscreen ||
+      doc.mozCancelFullScreen ||
+      doc.msExitFullscreen;
+
+    if (!doc.fullscreenElement && !doc.webkitFullscreenElement && !doc.mozFullScreenElement && !doc.msFullscreenElement) {
+      if (requestFullScreen) {
+        // Some older prefixed versions don't return a promise, so we try/catch instead of .catch()
+        try {
+          const promise = requestFullScreen.call(docEl);
+          if (promise) {
+            promise.catch(err => console.error(`Fullscreen error: ${err.message}`));
+          }
+        } catch (err) {
+          console.error(`Fullscreen error: ${err.message}`);
+        }
+      } else {
+        alert("Fullscreen is not supported by your browser (e.g. iOS Safari on iPhone). Try 'Add to Home Screen' instead!");
+      }
     } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
+      if (cancelFullScreen) {
+        cancelFullScreen.call(doc);
       }
     }
   };
@@ -54,10 +93,18 @@ export default function BottomBar({ cleanDashboard, toggleCleanDashboard, active
         >
           <Maximize size={24} />
         </button>
+        <button 
+          onClick={toggleHideMusic}
+          className="bottom-bar-icon-button"
+          title={hideMusic ? "Show Music" : "Hide Music"}
+        >
+          {hideMusic ? <EyeOff size={24} /> : <Eye size={24} />}
+        </button>
       </div>
 
       {/* Center Music (Mini Player) */}
-      <div className="bottom-bar-center">
+      {!hideMusic && (
+        <div className="bottom-bar-center">
         <div className="bottom-bar-album-art-container" onClick={() => setActivePanel(activePanel === 'music' ? null : 'music')}>
           <img src={albumArt} alt="Album Art" className="bottom-bar-album-art" />
         </div>
@@ -92,18 +139,19 @@ export default function BottomBar({ cleanDashboard, toggleCleanDashboard, active
           </button>
         </div>
       </div>
+      )}
 
       {/* Right Clock & Weather */}
-      <div 
-        className="bottom-bar-right"
-        onClick={() => setActivePanel(activePanel === 'weather' ? null : 'weather')}
-      >
+      <div className="bottom-bar-right">
         <span className="bottom-bar-time">
           {formatTime(new Date())}
         </span>
-        <div className="bottom-bar-weather">
+        <div 
+          className="bottom-bar-weather"
+          onClick={() => setActivePanel(activePanel === 'weather' ? null : 'weather')}
+        >
           <Cloud size={20} color="white" />
-          <span className="bottom-bar-temp">{formatTemp(23)}</span>
+          <span className="bottom-bar-temp">{weatherData ? formatTemp(weatherData.current.main.temp) : '--'}</span>
         </div>
       </div>
     </div>

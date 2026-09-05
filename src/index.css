@@ -1,11 +1,9 @@
 :root {
   --bg-color: #0f111a;
   --panel-bg: #151722;
-  --bar-bg: #1a1d29;
   --text-primary: #ffffff;
   --text-secondary: #9496a8;
   --accent-color: #557bf8;
-  --accent-color-hover: #4667d4;
   --danger-color: #f85555;
   --success-color: #27ae60;
   --glass-bg: rgba(26, 29, 41, 0.7);
@@ -19,6 +17,11 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus, button:focus-visible {
+  outline: none;
 }
 
 body, html, #root {
@@ -59,9 +62,8 @@ body, html, #root {
   position: absolute;
   left: 0;
   top: 0;
-  bottom: 50px;
+  bottom: 45px;
   z-index: 10;
-  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
   transition: transform 0.3s ease-in-out;
@@ -76,7 +78,7 @@ body, html, #root {
   bottom: 0;
   left: 0;
   width: 100%;
-  height: 50px;
+  height: 45px;
   background-color: #1a1d27;
   display: flex;
   align-items: center;

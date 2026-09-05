@@ -29,6 +29,19 @@ export default function MusicPanel({ setActivePanel }) {
     return `${m}:${s}`;
   };
 
+  const handleProgressClick = (e) => {
+    if (!playerState || !playerState.item) return;
+    
+    const bar = e.currentTarget;
+    const rect = bar.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const percentage = Math.max(0, Math.min(1, clickX / rect.width));
+    
+    const newProgressMs = percentage * playerState.item.duration_ms;
+    setLocalProgress(newProgressMs);
+    controls.seek(newProgressMs);
+  };
+
   const renderContent = () => {
     if (!token) {
       return (
@@ -104,7 +117,11 @@ export default function MusicPanel({ setActivePanel }) {
         {/* Progress */}
         <div className="music-panel-progress-container">
           <span className="music-panel-progress-time">{formatTime(localProgress)}</span>
-          <div className="music-panel-progress-bar-bg">
+          <div 
+            className="music-panel-progress-bar-bg"
+            onClick={handleProgressClick}
+            style={{ cursor: 'pointer' }}
+          >
             <div 
               className="music-panel-progress-bar-fill" 
               style={{ width: `${(localProgress / duration) * 100}%` }} 
